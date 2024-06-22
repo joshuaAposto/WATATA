@@ -6,6 +6,7 @@
 <title>NGL SPAMMER</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <style>
+/* Your existing CSS styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -197,14 +198,14 @@ button:hover {
   <div id="auth-container">
     <div id="signup-form" class="form-container">
       <h2>Signup</h2>
-      <form id="signupForm">
+      <form id="signupForm" onsubmit="event.preventDefault(); signup();">
         <label for="signup-name">Name:</label>
         <input type="text" id="signup-name" name="signup-name" required>
         <div id="name-error" class="error-message hidden">Name is required</div>
 
         <label for="signup-email-phone">Email or Phone:</label>
-        <input type="email" id="signup-email-phone" name="signup-email-phone" required>
-        <div id="email-phone-error" class="error-message hidden">Valid Email or Phone number is required</div>
+        <input type="text" id="signup-email-phone" name="signup-email-phone" required>
+        <div id="email-phone-error" class="error-message hidden">Valid email or phone number is required</div>
 
         <label for="signup-password">Password:</label>
         <input type="password" id="signup-password" name="signup-password" required>
@@ -214,7 +215,7 @@ button:hover {
         <input type="text" id="signup-profile-pic" name="signup-profile-pic" required>
         <div id="profile-pic-error" class="error-message hidden">Profile Picture URL is required</div>
 
-        <button type="button" onclick="signup()">Signup</button>
+        <button type="submit">Signup</button>
         <p>Already have an account? <a href="#" onclick="toggleAuthForms()">Login</a></p>
       </form>
     </div>
@@ -224,7 +225,7 @@ button:hover {
       <form>
         <label for="login-email-phone">Email or Phone:</label>
         <input type="text" id="login-email-phone" name="login-email-phone" required>
-        <div id="login-email-phone-error" class="error-message hidden">Valid Email or Phone number is required</div>
+        <div id="login-email-phone-error" class="error-message hidden">Valid email or phone number is required</div>
 
         <label for="login-password">Password:</label>
         <input type="password" id="login-password" name="login-password" required>
@@ -271,9 +272,6 @@ button:hover {
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <script>
-let users = {};
-let currentUser = null;
-
 function toggleAuthForms() {
   document.getElementById('signup-form').classList.toggle('hidden');
   document.getElementById('login-form').classList.toggle('hidden');
@@ -285,45 +283,54 @@ function signup() {
   const password = document.getElementById('signup-password').value.trim();
   const profilePic = document.getElementById('signup-profile-pic').value.trim();
 
-  if (!name) {
-    document.getElementById('name-error').classList.remove('hidden');
-  } else {
-    document.getElementById('name-error').classList.add('hidden');
-  }
-
-  if (!validateEmailPhone(emailPhone)) {
-    document.getElementById('email-phone-error').classList.remove('hidden');
-  } else {
-    document.getElementById('email-phone-error').classList.add('hidden');
-  }
-
-  if (!password) {
-    document.getElementById('password-error').classList.remove('hidden');
-  } else {
-    document.getElementById('password-error').classList.add('hidden');
-  }
-
-  if (!profilePic) {
-    document.getElementById('profile-pic-error').classList.remove('hidden');
-  } else {
-    document.getElementById('profile-pic-error').classList.add('hidden');
-  }
-
   if (!name || !validateEmailPhone(emailPhone) || !password || !profilePic) {
+    if (!name) document.getElementById('name-error').classList.remove('hidden');
+    else document.getElementById('name-error').classList.add('hidden');
+
+    if (!validateEmailPhone(emailPhone)) document.getElementById('email-phone-error').classList.remove('hidden');
+    else document.getElementById('email-phone-error').classList.add('hidden');
+
+    if (!password) document.getElementById('password-error').classList.remove('hidden');
+    else document.getElementById('password-error').classList.add('hidden');
+
+    if (!profilePic) document.getElementById('profile-pic-error').classList.remove('hidden');
+    else document.getElementById('profile-pic-error').classList.add('hidden');
+
     return;
   }
 
-  if (users[emailPhone]) {
-    alert('Email or Phone number already exists');
-    return;
-  }
-
-  users[emailPhone] = { name, password, profilePic, emailPhone };
-  currentUser = users[emailPhone];
-  displayUserProfile();
-  toggleVisibility();
-  document.getElementById('signupForm').reset(); // Clear form fields
-  showSuccessMessage('Signup successful!');
+  fetch('/signup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, emailPhone, password, profilePic }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        Swal.fire({
+  icon: 'error',
+  title: 'Oops...',
+  text: data.error,
+})
+      } else {
+        Swal.fire({
+  icon: 'success',
+  title: 'Signup successful',
+})
+        document.getElementById('signupForm').reset(); // Clear form fields
+        toggleAuthForms(); // Switch to login form after successful signup
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      Swal.fire({
+  icon: 'error',
+  title: 'Oops...',
+  text: 'Error signing up. Please try again later.',
+})
+    });
 }
 
 function login() {
@@ -332,43 +339,57 @@ function login() {
 
   if (!validateEmailPhone(emailPhone)) {
     document.getElementById('login-email-phone-error').classList.remove('hidden');
-  } else {
-    document.getElementById('login-email-phone-error').classList.add('hidden');
-  }
-
-  if (!password) {
-    alert('Please fill in all fields');
     return;
   }
 
-  const foundUser = Object.values(users).find(user => {
-    return user.emailPhone === emailPhone && user.password === password;
-  });
+  fetch('/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ emailPhone, password }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        Swal.fire({
+  icon: 'error',
+  title: 'Oops...',
+  text: data.error,
+})
+      } else {
+        const { name, emailPhone, profilePic } = data.user;
+        document.getElementById('profile-pic').setAttribute('src', profilePic);
+        document.getElementById('profile-name').textContent = name;
+        document.getElementById('profile-email-phone').textContent = emailPhone;
 
-  if (!foundUser) {
-    alert('Invalid email/phone or password');
-    return;
-  }
-
-  currentUser = foundUser;
-  displayUserProfile();
-  toggleVisibility();
+        document.getElementById('auth-container').classList.add('hidden');
+        document.getElementById('ngl-container').classList.remove('hidden');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      Swal.fire({
+  icon: 'error',
+  title: 'Oops...',
+  text: 'Error logging in. Please try again later.',
+})
+    });
 }
 
 function logout() {
-  currentUser = null;
-  toggleVisibility();
+  document.getElementById('ngl-container').classList.add('hidden');
+  document.getElementById('auth-container').classList.remove('hidden');
+
+  document.getElementById('login-email-phone').value = '';
+  document.getElementById('login-password').value = '';
 }
 
-function toggleVisibility() {
-  document.getElementById('auth-container').classList.toggle('hidden', currentUser !== null);
-  document.getElementById('ngl-container').classList.toggle('hidden', currentUser === null);
-}
+function validateEmailPhone(input) {
+  const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+  const phonePattern = /^[0-9]{10}$/;
 
-function displayUserProfile() {
-  document.getElementById('profile-pic').src = currentUser.profilePic;
-  document.getElementById('profile-name').textContent = currentUser.name;
-  document.getElementById('profile-email-phone').textContent = currentUser.emailPhone;
+  return emailPattern.test(input) || phonePattern.test(input);
 }
 
 function fetchNGLContent() {
@@ -376,61 +397,30 @@ function fetchNGLContent() {
   const category = document.getElementById('category').value;
   const amount = document.getElementById('amount').value;
 
-  fetch(`https://ngl-fml8.onrender.com/ngl?username=${username}&category=${category}&amount=${amount}`)
+  // Perform fetch request here to get NGL content
+  // Replace with your actual API endpoint and logic
+  // Example placeholder below
+  fetch(`/ngl?username=${username}&category=${category}&amount=${amount}`)
     .then(response => response.json())
     .then(data => {
-      displayResults(data);
+      // Display results in the results container
+      const resultsContainer = document.getElementById('results');
+      resultsContainer.innerHTML = ''; // Clear previous results
+
+      data.forEach(result => {
+        const p = document.createElement('p');
+        p.textContent = `${result.username}: ${result.content}`;
+        resultsContainer.appendChild(p);
+      });
     })
     .catch(error => {
-      console.error('Error fetching content:', error);
-      alert('Error fetching content. Please try again later.');
+      console.error('Error fetching NGL content:', error);
+      Swal.fire({
+  icon: 'error',
+  title: 'Oops...',
+  text: 'Error fetching NGL content. Please try again later.',
+})
     });
-}
-
-function displayResults(data) {
-  const resultsContainer = document.getElementById('results');
-  resultsContainer.innerHTML = '';
-
-  if (data.message === "Messages sent" && data.developedBy === "Joshua Apostol") {
-    const successMessage = document.createElement('p');
-    successMessage.textContent = 'Sent successfully';
-    successMessage.classList.add('success-message');
-    resultsContainer.appendChild(successMessage);
-  } else {
-    const p = document.createElement('p');
-    p.textContent = 'No results found.';
-    resultsContainer.appendChild(p);
-  }
-}
-
-function validateEmailPhone(input) {
-  // Regular expression to check for valid email or phone number
-  const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-  const phonePattern = /^[0-9]{10}$/;
-
-  return emailPattern.test(input) || phonePattern.test(input);
-}
-
-function showSuccessMessage(message) {
-  Swal.fire({
-    icon: 'success',
-    title: 'Success!',
-    text: message,
-    confirmButtonText: 'OK'
-  });
-}
-
-window.onload = function() {
-  Swal.fire({
-    title: 'NGL SPAM',
-    text: 'Welcome to our NGL SPAM version 1.0. Please enjoy this app.',
-    imageUrl: 'https://i.imgur.com/I3ErVhh.png',
-    imageWidth: 200,
-    imageHeight: 200,
-    imageAlt: 'Custom Logo',
-    footer: 'Made by Joshua Apostol',
-    confirmButtonText: 'OK'
-  });
 }
 </script>
 </body>
