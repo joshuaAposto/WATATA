@@ -197,7 +197,7 @@ button:hover {
   <div id="auth-container">
     <div id="signup-form" class="form-container">
       <h2>Signup</h2>
-      <form id="signupForm" onsubmit="event.preventDefault(); signup();">
+      <form id="signupForm" onsubmit="signup(event)">
         <label for="signup-name">Name:</label>
         <input type="text" id="signup-name" name="signup-name" required>
         <div id="name-error" class="error-message hidden">Name is required</div>
@@ -221,7 +221,7 @@ button:hover {
 
     <div id="login-form" class="form-container hidden">
       <h2>Login</h2>
-      <form id="loginForm" onsubmit="event.preventDefault(); login();">
+      <form id="loginForm" onsubmit="login(event)">
         <label for="login-email-phone">Email or Phone:</label>
         <input type="text" id="login-email-phone" name="login-email-phone" required>
         <div id="login-email-phone-error" class="error-message hidden">Valid Gmail or Phone number is required</div>
@@ -246,7 +246,7 @@ button:hover {
     </div>
 
     <div class="form-container">
-      <form id="nglForm" onsubmit="event.preventDefault(); fetchNGLContent();">
+      <form id="nglForm" onsubmit="fetchNGLContent(event)">
         <label for="username">Username:</label>
         <input type="text" id="username" name="username">
 
@@ -279,7 +279,9 @@ function toggleAuthForms() {
   document.getElementById('login-form').classList.toggle('hidden');
 }
 
-function signup() {
+function signup(event) {
+  event.preventDefault();
+
   const name = document.getElementById('signup-name').value.trim();
   const emailPhone = document.getElementById('signup-email-phone').value.trim();
   const password = document.getElementById('signup-password').value.trim();
@@ -310,13 +312,16 @@ function signup() {
     return;
   }
 
-  users[emailPhone] = { name, password, profilePic, emailPhone };
-  currentUser = users[emailPhone];
-  displayUserProfile();
+  const newUser = { name, emailPhone, password, profilePic };
+  users[emailPhone] = newUser;
+
+  setCurrentUser(newUser);
   toggleVisibility();
 }
 
-function login() {
+function login(event) {
+  event.preventDefault();
+
   const emailPhone = document.getElementById('login-email-phone').value.trim();
   const password = document.getElementById('login-password').value.trim();
 
@@ -324,13 +329,6 @@ function login() {
     if (!validateEmailPhone(emailPhone)) document.getElementById('login-email-phone-error').classList.remove('hidden');
     else document.getElementById('login-email-phone-error').classList.add('hidden');
 
-    if (!password) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Please fill in all fields!',
-      });
-    }
     return;
   }
 
@@ -347,8 +345,7 @@ function login() {
     return;
   }
 
-  currentUser = foundUser;
-  displayUserProfile();
+  setCurrentUser(foundUser);
   toggleVisibility();
 }
 
@@ -357,78 +354,74 @@ function logout() {
   toggleVisibility();
 }
 
-function toggleVisibility() {
-  const authContainer = document.getElementById('auth-container');
-  const nglContainer = document.getElementById('ngl-container');
-
-  authContainer.classList.toggle('hidden', currentUser !== null);
-  nglContainer.classList.toggle('hidden', currentUser === null);
-
-  // Clear signup and login form fields on visibility change
-  if (currentUser === null) {
-    document.getElementById('signupForm').reset();
-    document.getElementById('loginForm').reset();
-  }
+function setCurrentUser(user) {
+  currentUser = user;
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  displayUserProfile();
 }
 
 function displayUserProfile() {
-  document.getElementById('profile-pic').src = currentUser.profilePic;
-  document.getElementById('profile-name').textContent = currentUser.name;
-  document.getElementById('profile-email-phone').textContent = currentUser.emailPhone;
-}
-
-function fetchNGLContent() {
-  const username = document.getElementById('username').value;
-  const category = document.getElementById('category').value;
-  const amount = document.getElementById('amount').value;
-
-  fetch(`https://ngl-fml8.onrender.com/ngl?username=${username}&category=${category}&amount=${amount}`)
-    .then(response => response.json())
-    .then(data => {
-      displayResults(data);
-    })
-    .catch(error => {
-      console.error('Error fetching content:', error);
-      alert('Error fetching content. Please try again later.');
-    });
-}
-
-function displayResults(data) {
-  const resultsContainer = document.getElementById('results');
-  resultsContainer.innerHTML = '';
-
-  if (data.message === "Messages sent" && data.developedBy === "Joshua Apostol") {
-    const successMessage = document.createElement('p');
-    successMessage.textContent = 'Sent successfully';
-    successMessage.classList.add('success-message');
-    resultsContainer.appendChild(successMessage);
+  if (currentUser) {
+    document.getElementById('profile-pic').src = currentUser.profilePic;
+    document.getElementById('profile-name').textContent = currentUser.name;
+    document.getElementById('profile-email-phone').textContent = currentUser.emailPhone;
   } else {
-    const p = document.createElement('p');
-    p.textContent = 'No results found.';
-    resultsContainer.appendChild(p);
+    document.getElementById('profile-pic').src = '';
+    document.getElementById('profile-name').textContent = '';
+    document.getElementById('profile-email-phone').textContent = '';
   }
 }
 
-function validateEmailPhone(input) {
-  // Regular expression to check for valid email or phone number
-  const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-  const phonePattern = /^[0-9]{10}$/;
-
-  return emailPattern.test(input) || phonePattern.test(input);
+function toggleVisibility() {
+  if (currentUser) {
+    document.getElementById('auth-container').classList.add('hidden');
+    document.getElementById('ngl-container').classList.remove('hidden');
+  } else {
+    document.getElementById('auth-container').classList.remove('hidden');
+    document.getElementById('ngl-container').classList.add('hidden');
+    document.getElementById('signup-form').classList.remove('hidden');
+    document.getElementById('login-form').classList.add('hidden');
+  }
 }
 
-window.onload = function() {
+function fetchNGLContent(event) {
+  event.preventDefault();
+
+  const username = document.getElementById('username').value.trim();
+  const category = document.getElementById('category').value;
+  const amount = document.getElementById('amount').value;
+
+  // Example API call or function to fetch content
+  // Replace this with your actual logic to fetch content
+  // For demo purposes, just showing an alert
+  let message = `Fetching content for ${amount} ${category} messages`;
+  if (username) {
+    message += ` for user ${username}`;
+  }
   Swal.fire({
-    title: 'NGL SPAM',
-    text: 'Welcome to our NGL SPAM version 1.0. Please enjoy this app.',
-    imageUrl: 'https://i.imgur.com/I3ErVhh.png',
-    imageWidth: 200,
-    imageHeight: 200,
-    imageAlt: 'Custom Logo',
-    footer: 'Made by Joshua Apostol',
-    confirmButtonText: 'OK'
+    icon: 'info',
+    title: 'Fetching Content',
+    text: message,
   });
 }
+
+function validateEmailPhone(input) {
+  // Simplified validation for demonstration purposes
+  // Replace with your actual validation logic
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^[0-9]{10}$/;
+  return emailRegex.test(input) || phoneRegex.test(input);
+}
+
+// Check localStorage on page load
+window.onload = function() {
+  const storedUser = localStorage.getItem('currentUser');
+  if (storedUser) {
+    currentUser = JSON.parse(storedUser);
+    displayUserProfile();
+    toggleVisibility();
+  }
+};
 </script>
 </body>
 </html>
